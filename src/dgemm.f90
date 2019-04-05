@@ -118,12 +118,10 @@ program dgemm
 
     if (my_row == 0 .and. my_col == 0) then
         write(1, *) "DGEMM took", end_time - start_time, "seconds."
+        call gemm_flops(M,gflops)
+        write(1, *) "perf:",gflops/(end_time - start_time),"GFlops/s"
+        ! write(*, *) "perf:",gflops/(end_time - start_time),"GFlops"
     end if
-
-    call gemm_flops(M,gflops)
-    write(1, *) "perf:",gflops/(end_time - start_time),"GFlops/s"
-    ! write(*, *) "perf:",gflops/(end_time - start_time),"GFlops"
-
 
     10 continue
     call blacs_exit(0)
