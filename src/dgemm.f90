@@ -39,6 +39,8 @@ program dgemm
     double precision, allocatable :: B(:, :)
     double precision, allocatable :: C(:, :)
 
+    double precision :: gflops
+
     open(unit=1, file="out_dgemm.txt")
     open(unit=2, file="in.txt")
     read (2, *) M, block_size, processor_rows, processor_cols
@@ -118,6 +120,11 @@ program dgemm
         write(1, *) "DGEMM took", end_time - start_time, "seconds."
     end if
 
+    call gemm_flops(M,gflops)
+    write(1, *) "perf:",gflops/(end_time - start_time),"GFlops/s"
+    ! write(*, *) "perf:",gflops/(end_time - start_time),"GFlops"
+
+
     10 continue
     call blacs_exit(0)
 end program dgemm
@@ -136,3 +143,12 @@ subroutine sl_init(processor_rows, processor_cols, context)
     call blacs_gridinit(context, 'Row-major', processor_rows, processor_cols)
     return
 end subroutine sl_init
+
+subroutine gemm_flops(M,gflops)
+    integer,intent(in) :: M
+    double precision,intent(out):: gflops
+
+    gflops = (2.0 * M * M * M)/(1024.0 * 1024.0 * 1024.0)
+
+
+end subroutine gemm_flops
