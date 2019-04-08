@@ -43,6 +43,7 @@ program cholesky
     double precision, allocatable :: A(:, :)
     double precision, allocatable :: singular_values(:)
     double precision, allocatable :: A_copy(:, :)
+    double precision :: gflops
 
     open(unit=1, file="out_svd.txt")
     open(unit=2, file="in.txt")
@@ -138,6 +139,8 @@ program cholesky
 
     if (my_row == 0 .and. my_col == 0) then
         write(1, *) "SVD took", end_time - start_time, "seconds."
+        call gemm_flops(M,gflops)
+        write(1, *) "perf:",gflops/(end_time - start_time),"GFlops/s"
     end if
 
     10 continue
@@ -158,3 +161,13 @@ subroutine sl_init(processor_rows, processor_cols, context)
     call blacs_gridinit(context, 'Row-major', processor_rows, processor_cols)
     return
 end subroutine sl_init
+
+
+subroutine gemm_flops(M,gflops)
+    integer,intent(in) :: M
+    double precision,intent(out):: gflops
+
+    gflops = (14.0 * M * M * M + 8.0 * M * M * M)/1024.0 / 1024.0 / 1024.0
+
+
+end subroutine gemm_flops
