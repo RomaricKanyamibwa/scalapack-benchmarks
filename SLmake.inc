@@ -26,11 +26,11 @@ CDEFS         = -DAdd_
 #  The fortran and C compilers, loaders, and their flags
 #
 
-FC            = mpif90
+FC            = mpifort
 CC            = mpicc 
 NOOPT         = -O0
-FCFLAGS       = -O3
-CCFLAGS       = -O3
+FFLAGS        = -O3 -fopenmp -fPIC
+CCFLAGS       = -O3 -fopenmp -traceback -fPIC
 FCLOADER      = $(FC)
 CCLOADER      = $(CC)
 FCLOADFLAGS   = $(FCFLAGS)
@@ -59,4 +59,4 @@ SCALAPACKLIB  = /usr/lib/libscalapack-openmpi.so
 BLASLIB       = -lblas
 LAPACKLIB     = -llapack
 BLACS	      = /usr/lib/libblacs-openmpi.so /usr/lib/libblacsF77init-openmpi.so
-LIBS          =  $(BLACS) $(LAPACKLIB) $(BLASLIB)
+LIBS          =  $(BLACS) $(LAPACKLIB) $(BLASLIB) $(SCALAPACKLIB)

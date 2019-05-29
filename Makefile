@@ -12,28 +12,20 @@ PROGS=$(patsubst src/%.f90,bin/%,$(SRCS))
 ifeq ($(TARGET),intel)
 
 	FC=mpiifort
-	FFLAGS=-i8 -I${MKLROOT}/include/intel64/ilp64 -I${MKLROOT}/include -fpp
+	OPTF    = -O3 -nofor_main -qopenmp -traceback -fPIC 
+	FFLAGS  = $(OPTF) -I${MKLROOT}/include/intel64/lp64 -I${MKLROOT}/include -fpp -fPIC
 
-	LIBS=-L${MKLROOT}/lib/intel64/libmkl_blas95_ilp64.a ${MKLROOT}/lib/intel64/libmkl_lapack95_ilp64.a ${MKLROOT}/lib/intel64/libmkl_scalapack_ilp64.a -Wl,--start-group ${MKLROOT}/lib/intel64/libmkl_intel_ilp64.a ${MKLROOT}/lib/intel64/libmkl_sequential.a ${MKLROOT}/lib/intel64/libmkl_core.a ${MKLROOT}/lib/intel64/libmkl_blacs_intelmpi_ilp64.a -Wl,--end-group -lpthread -lm -ldl
+	LAPACK = -L${MKLROOT}/lib/intel64/ -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core #lmkl_lapack95_lp64 lmkl_sequential.a
+	SCALAP = -lmkl_scalapack_lp64 -lmkl_blacs_intelmpi_lp64
+	LIBBLAS =-lmkl_blas95_lp64
+	LIBPAR = $(LAPACK) $(LIBBLAS) $(SCALAP)
+
+	LIBS=-Wl,--start-group $(LIBPAR) -Wl,--end-group -lpthread -lm -ldl
 endif
 
 all: $(PROGS)
 
 bin/%: src/%.f90
-	$(FC) $(FFLAGS) -o $@ $<  $(SCALAPACKLIB) $(LIBS) -g
+	$(FC) $(FFLAGS) -o $@ $< $(LIBS) -g
 clean:
 	rm -f bin/*
-
-# Intel: $(PROGS)
-
-# bin/%: src/%.f90
-# 	$(FC) $(FFLAGS) -o $@ $< $(LINK)
-
-# clean:
-# 	rm -f bin/*
-
-# error:
-# 	rm -f errors/*
-
-# output:
-# 	rm -f outputs/*
