@@ -1,6 +1,6 @@
-#define GAUSSIAN_A 0
+#define GAUSSIAN_A 1
 
-program cholesky
+program svd
     implicit none
     external blacs_exit
     external blacs_gridexit
@@ -11,41 +11,43 @@ program cholesky
     external pdpotrf 
     external dlarnv
     external pdgeadd 
+    integer, external :: indxg2p
     integer, external :: numroc
     double precision, external :: MPI_Wtime 
     integer, parameter :: descriptor_len = 9
     double precision, parameter :: one = 1.0
     integer :: M 
     integer :: block_size 
-    integer :: N_B 
+    double precision :: dwork_size
     double precision :: lambda 
     integer :: processor_rows
     integer :: processor_cols 
-    integer :: block_size_N_B
     integer :: context
     integer :: my_row
     integer :: my_col
     integer :: local_M
-    integer :: local_N_A
-    integer :: local_N_B
+    integer :: local_N
+    integer :: mp0
+    integer :: nq0
+    integer :: work_size
     integer :: leading_dim
     integer :: info
     integer :: descriptor_A(descriptor_len)
     integer :: descriptor_A_copy(descriptor_len)
-    integer :: descriptor_B(descriptor_len)
     integer :: seed(4) = [0, 0, 0, 0]
     integer :: i
     double precision :: start_time
     double precision :: end_time
     double precision, allocatable :: temp_arr(:)
+    double precision, allocatable :: work(:)
     double precision, allocatable :: A(:, :)
+    double precision, allocatable :: singular_values(:)
     double precision, allocatable :: A_copy(:, :)
-    double precision, allocatable :: B(:, :)
     double precision :: gflops
 
-    open(unit=1, file="out_cholesky.txt")
+    open(unit=1, file="out_svd.txt")
     open(unit=2, file="in.txt")
-    read (2, *) M, block_size, N_B, lambda, processor_rows, processor_cols
+    read (2, *) M, block_size, lambda, processor_rows, processor_cols
     ! Initialize the process grid.
     call sl_init(processor_rows, processor_cols, context)
     call blacs_gridinfo(context, processor_rows, processor_cols, my_row, my_col)
@@ -61,26 +63,23 @@ program cholesky
     end if
 
     if (my_row == 0 .and. my_col == 0) then
-        write (1, *), "Num rows", M
-        write (1, *), "Block size", block_size
-        write (1, *), "B cols", N_B
-        write (1, *), "lambda", lambda
-        write (1, *), "processor rows", processor_rows
-        write (1, *), "processor cols", processor_cols
+        write (1, *)"Num rows", M
+        write (1, *)"Block size", block_size
+        write (1, *)"lambda", lambda
+        write (1, *)"processor rows", processor_rows
+        write (1, *)"processor cols", processor_cols
     end if
 
     ! Compute matrix shapes.
-    block_size_N_B = min(block_size, N_B)
     local_M = numroc(M, block_size, my_row, 0, processor_rows)
-    local_N_A = numroc(M, block_size, my_col, 0, processor_cols)
-    local_N_B = numroc(N_B, block_size, my_col, 0, processor_cols)
+    local_N = numroc(M, block_size, my_col, 0, processor_cols)
     leading_dim = max(1, local_M)
 
     ! Allocate local matrices.
-    allocate(A(1:local_M, 1:local_N_A))
-    allocate(B(1:local_M, 1:local_N_B))
+    allocate(A(1:local_M, 1:local_N))
+    allocate(singular_values(1:M))
 #if GAUSSIAN_A
-    allocate(A_copy(1:local_M, 1:local_N_A))
+    allocate(A_copy(1:local_M, 1:local_N))
 #endif
 
     ! Initialize global matrix descriptors.
@@ -96,12 +95,6 @@ program cholesky
         go to 10
     end if
 
-    call descinit(descriptor_B, M, N_B, block_size, block_size_N_B, 0, 0, context, leading_dim, info)
-    if (info /= 0) then
-        write(1, *) "Descinit B failed argument", info, "is illegal."
-        go to 10
-    end if
-
     ! Set A = lambda I.
     if (my_row == 0 .and. my_col == 0) then
         print *, "Initializing A."
@@ -113,9 +106,9 @@ program cholesky
         print *, "Adding noise to A."
     endif
     ! Add gaussian noise to all entries of A.
-    allocate(temp_arr(1:local_N_A))
+    allocate(temp_arr(1:local_N))
     do i = 1, local_M
-        call dlarnv(3, seed, local_N_A, temp_arr) 
+        call dlarnv(3, seed, local_N, temp_arr) 
         A(i, :) = A(i, :) + temp_arr
     end do
     A_copy = A
@@ -125,34 +118,34 @@ program cholesky
 #endif
 
 
-    ! Perform the cholesky.
+    ! Get the work size and allocate the work array.
+    call pdgesvd("N", "N", M, M, A, 1, 1, descriptor_A, singular_values, 0, 0, 0, 0, 0, 0, 0, 0, dwork_size, -1, info)
+    work_size = nint(dwork_size)
+    print *, "Works is", work_size
+    allocate(work(1:work_size))
+
+    ! Perform the SVD.
     if (my_row == 0 .and. my_col == 0) then
-        print *, "Running cholesky."
+        print *, "Running SVD."
     endif
     start_time = MPI_Wtime()
-    call pdpotrf("L", M, A, 1, 1, descriptor_A, info)
+    call pdgesvd("N", "N", M, M, A, 1, 1, descriptor_A, singular_values, 0, 0, 0, 0, 0, 0, 0, 0, work, work_size, info)
     call blacs_barrier(context, "A")
     end_time = MPI_Wtime()
     if (info /= 0) then
-        write(1, *) "Cholesky failed leading minor of order", info, "is not positive definite."
+        write(1, *) "SVD failed with error code:", info
         go to 10
     end if
 
     if (my_row == 0 .and. my_col == 0) then
-        write(1, *) "Cholesky took", end_time - start_time, "seconds."
+        write(1, *) "SVD took", end_time - start_time, "seconds."
         call gemm_flops(M,gflops)
         write(1, *) "perf:",gflops/(end_time - start_time),"GFlops/s"
     end if
 
-    ! Set B to be gaussian with mean 10.
-    do i = 1, local_M
-        call dlarnv(3, seed, local_N_B, B(i, :)) 
-        B(i, :) = B(i, :) + 10.0
-    end do
-
     10 continue
     call blacs_exit(0)
-end program cholesky
+end program svd
 
 subroutine sl_init(processor_rows, processor_cols, context)
     external blacs_get
@@ -174,7 +167,7 @@ subroutine gemm_flops(M,gflops)
     integer,intent(in) :: M
     double precision,intent(out):: gflops
 
-    gflops = (1.0/3.0 * M * M * M + 1.0/2.0 * M * M)/1024.0 / 1024.0 / 1024.0
+    gflops = (14.0 * M * M * M + 8.0 * M * M * M)/1024.0 / 1024.0 / 1024.0
 
 
 end subroutine gemm_flops

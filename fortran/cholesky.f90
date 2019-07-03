@@ -1,4 +1,4 @@
-#define GAUSSIAN_A 1
+#define GAUSSIAN_A 0
 
 program cholesky
     implicit none
@@ -11,44 +11,41 @@ program cholesky
     external pdpotrf 
     external dlarnv
     external pdgeadd 
-    integer, external :: indxg2p
     integer, external :: numroc
     double precision, external :: MPI_Wtime 
     integer, parameter :: descriptor_len = 9
     double precision, parameter :: one = 1.0
     integer :: M 
     integer :: block_size 
+    integer :: N_B 
     double precision :: lambda 
     integer :: processor_rows
     integer :: processor_cols 
+    integer :: block_size_N_B
     integer :: context
     integer :: my_row
     integer :: my_col
     integer :: local_M
-    integer :: local_N
-    integer :: iarow
-    integer :: iacol
-    integer :: mp0
-    integer :: nq0
-    integer :: work_size
+    integer :: local_N_A
+    integer :: local_N_B
     integer :: leading_dim
     integer :: info
     integer :: descriptor_A(descriptor_len)
     integer :: descriptor_A_copy(descriptor_len)
+    integer :: descriptor_B(descriptor_len)
     integer :: seed(4) = [0, 0, 0, 0]
     integer :: i
     double precision :: start_time
     double precision :: end_time
     double precision, allocatable :: temp_arr(:)
-    double precision, allocatable :: work(:)
     double precision, allocatable :: A(:, :)
-    double precision, allocatable :: tau(:)
     double precision, allocatable :: A_copy(:, :)
+    double precision, allocatable :: B(:, :)
     double precision :: gflops
 
-    open(unit=1, file="out_qr.txt")
+    open(unit=1, file="out_cholesky.txt")
     open(unit=2, file="in.txt")
-    read (2, *) M, block_size, lambda, processor_rows, processor_cols
+    read (2, *) M, block_size, N_B, lambda, processor_rows, processor_cols
     ! Initialize the process grid.
     call sl_init(processor_rows, processor_cols, context)
     call blacs_gridinfo(context, processor_rows, processor_cols, my_row, my_col)
@@ -64,31 +61,26 @@ program cholesky
     end if
 
     if (my_row == 0 .and. my_col == 0) then
-        write (1, *), "Num rows", M
-        write (1, *), "Block size", block_size
-        write (1, *), "lambda", lambda
-        write (1, *), "processor rows", processor_rows
-        write (1, *), "processor cols", processor_cols
+        write (1, *)"Num rows", M
+        write (1, *)"Block size", block_size
+        write (1, *)"B cols", N_B
+        write (1, *)"lambda", lambda
+        write (1, *)"processor rows", processor_rows
+        write (1, *)"processor cols", processor_cols
     end if
 
     ! Compute matrix shapes.
+    block_size_N_B = min(block_size, N_B)
     local_M = numroc(M, block_size, my_row, 0, processor_rows)
-    local_N = numroc(M, block_size, my_col, 0, processor_cols)
+    local_N_A = numroc(M, block_size, my_col, 0, processor_cols)
+    local_N_B = numroc(N_B, block_size, my_col, 0, processor_cols)
     leading_dim = max(1, local_M)
 
-    ! Compute size of work.
-    iarow = indxg2p(1, block_size, my_row, 0, processor_rows)
-    iacol = indxg2p(1, block_size, my_col, 0, processor_cols)
-    mp0 = numroc(M, block_size, my_row, iarow, processor_rows)
-    nq0 = numroc(M, block_size, my_col, iacol, processor_cols)
-    work_size = block_size * (mp0 + nq0 + block_size)
-
     ! Allocate local matrices.
-    allocate(A(1:local_M, 1:local_N))
-    allocate(tau(1:M))
-    allocate(work(1:work_size))
+    allocate(A(1:local_M, 1:local_N_A))
+    allocate(B(1:local_M, 1:local_N_B))
 #if GAUSSIAN_A
-    allocate(A_copy(1:local_M, 1:local_N))
+    allocate(A_copy(1:local_M, 1:local_N_A))
 #endif
 
     ! Initialize global matrix descriptors.
@@ -104,21 +96,26 @@ program cholesky
         go to 10
     end if
 
+    call descinit(descriptor_B, M, N_B, block_size, block_size_N_B, 0, 0, context, leading_dim, info)
+    if (info /= 0) then
+        write(1, *) "Descinit B failed argument", info, "is illegal."
+        go to 10
+    end if
+
     ! Set A = lambda I.
     if (my_row == 0 .and. my_col == 0) then
         print *, "Initializing A."
     endif
     call pdlaset("", M, M, 0.0, lambda, A, 1, 1, descriptor_A)
-    print *, "SUCCES"
 
 #if GAUSSIAN_A
     if (my_row == 0 .and. my_col == 0) then
         print *, "Adding noise to A."
     endif
     ! Add gaussian noise to all entries of A.
-    allocate(temp_arr(1:local_N))
+    allocate(temp_arr(1:local_N_A))
     do i = 1, local_M
-        call dlarnv(3, seed, local_N, temp_arr) 
+        call dlarnv(3, seed, local_N_A, temp_arr) 
         A(i, :) = A(i, :) + temp_arr
     end do
     A_copy = A
@@ -128,24 +125,30 @@ program cholesky
 #endif
 
 
-    ! Perform the QR.
+    ! Perform the cholesky.
     if (my_row == 0 .and. my_col == 0) then
-        print *, "Running QR."
+        print *, "Running cholesky."
     endif
     start_time = MPI_Wtime()
-    call pdgeqrf(M, M, A, 1, 1, descriptor_A, tau, work, work_size, info)
+    call pdpotrf("L", M, A, 1, 1, descriptor_A, info)
     call blacs_barrier(context, "A")
     end_time = MPI_Wtime()
     if (info /= 0) then
-        write(1, *) "QR failed with error code:", info
+        write(1, *) "Cholesky failed leading minor of order", info, "is not positive definite."
         go to 10
     end if
 
     if (my_row == 0 .and. my_col == 0) then
-        write(1, *) "QR took", end_time - start_time, "seconds."
+        write(1, *) "Cholesky took", end_time - start_time, "seconds."
         call gemm_flops(M,gflops)
         write(1, *) "perf:",gflops/(end_time - start_time),"GFlops/s"
     end if
+
+    ! Set B to be gaussian with mean 10.
+    do i = 1, local_M
+        call dlarnv(3, seed, local_N_B, B(i, :)) 
+        B(i, :) = B(i, :) + 10.0
+    end do
 
     10 continue
     call blacs_exit(0)
@@ -166,11 +169,12 @@ subroutine sl_init(processor_rows, processor_cols, context)
     return
 end subroutine sl_init
 
+
 subroutine gemm_flops(M,gflops)
     integer,intent(in) :: M
     double precision,intent(out):: gflops
 
-    gflops = (2.0/3.0 * M * M * M + M * M + 1.0/3.0 * M * M -2)/1024.0 / 1024.0 / 1024.0
- 
+    gflops = (1.0/3.0 * M * M * M + 1.0/2.0 * M * M)/1024.0 / 1024.0 / 1024.0
+
 
 end subroutine gemm_flops

@@ -28,8 +28,9 @@ CDEFS         = -DAdd_
 
 FC            = mpifort
 CC            = mpicc 
+CXX			  = mpicxx
 NOOPT         = -O0
-FFLAGS        = -O3 -fopenmp -fPIC
+FFLAGS        = -O3 -fopenmp -fPIC -cpp
 CCFLAGS       = -O3 -fopenmp -traceback -fPIC
 FCLOADER      = $(FC)
 CCLOADER      = $(CC)
@@ -49,7 +50,7 @@ RANLIB        = ranlib
 #  The name of the ScaLAPACK library to be created
 #
 
-SCALAPACKLIB  = /usr/lib/libscalapack-openmpi.so
+SCALAPACKLIB  = -lscalapack-openmpi
 # libscalapack.a
 
 #
@@ -58,5 +59,7 @@ SCALAPACKLIB  = /usr/lib/libscalapack-openmpi.so
 
 BLASLIB       = -lblas
 LAPACKLIB     = -llapack
-BLACS	      = /usr/lib/libblacs-openmpi.so /usr/lib/libblacsF77init-openmpi.so
-LIBS          =  $(BLACS) $(LAPACKLIB) $(BLASLIB) $(SCALAPACKLIB)
+BLACSF	      = -lblacs-openmpi -lblacsF77init-openmpi
+BLACSC	      = -lblacs-openmpi -lblacsCinit-openmpi
+LIBSF         =  $(BLACSF) $(LAPACKLIB) $(BLASLIB) $(SCALAPACKLIB)
+LIBS          =  $(BLACSC) $(LAPACKLIB) $(BLASLIB) $(SCALAPACKLIB)
