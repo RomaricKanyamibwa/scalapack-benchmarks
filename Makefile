@@ -32,14 +32,15 @@ ifeq ($(TARGET),intel)
 	CXX=mpiicpc
 	OPTF    = -O3 -nofor_main -qopenmp -traceback -fPIC 
 	FFLAGS  = $(OPTF) -I${MKLROOT}/include/intel64/lp64 -I${MKLROOT}/include -fpp -fPIC
+	CCFLAGS = -O3 -qopenmp -traceback -fPIC -I${MKLROOT}/include/intel64/lp64 -I${MKLROOT}/include
+	
+	LIBBLAS = -lmkl_blas95_lp64
+	LAPACK 	= -lmkl_lapack95_lp64
+	SCALAP 	= -lmkl_scalapack_lp64 -Wl,--start-group -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -lmkl_blacs_intelmpi_lp64
+	LIBPAR 	= -L${MKLROOT}/lib/intel64/ $(LIBBLAS) $(LAPACK) $(SCALAP)
 
-	LAPACK 	= -L${MKLROOT}/lib/intel64/ -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core #lmkl_lapack95_lp64 lmkl_sequential.a
-	SCALAP 	= -lmkl_scalapack_lp64 -lmkl_blacs_intelmpi_lp64
-	LIBBLAS =-lmkl_blas95_lp64
-	LIBPAR 	= $(LAPACK) $(LIBBLAS) $(SCALAP)
-
-	LIBS 	=-Wl,--start-group $(LIBPAR) -Wl,--end-group -lpthread -lm -ldl
-	LIBSF	=$(LIBS)
+	LIBS 	= $(LIBPAR) -Wl,--end-group -lpthread -lm -ldl
+	LIBSF	= $(LIBS)
 endif
 
 default:$(OBJ_MOD) $(PROGS) 
@@ -60,10 +61,10 @@ $(BIN):$(addprefix obj/, $(OBJECTS))
 	$(CXX) $(CCLAGS) $(CPPFLAGS) -o $@ $(SRCS_CPP) $^ $(LIBS) -g
 
 obj/%.o: $(COMMON)%.cpp
-	$(CXX) -c -o $@ $^ $(CCLAGS) $(CPPFLAGS) $(LIBS) -g
+	$(CXX) -c -o $@ $^ $(CCFLAGS) $(CPPFLAGS) $(LIBS) -g
 
 %.o: %.cpp
-	$(CXX) -c -o $@ $^ $(CCLAGS) $(CPPFLAGS) $(LIBS) -g
+	$(CXX) -c -o $@ $^ $(CCFLAGS) $(CPPFLAGS) $(LIBS) -g
 
 clean:
-	rm -f bin/* obj/* *.mod
+	rm -f bin/* obj/* *.mod out_*

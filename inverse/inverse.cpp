@@ -2,6 +2,7 @@
 #include <cstdio>
 #include <cassert>
 #include <iostream>
+#include <fstream>
 #include <string>
 #include <algorithm>
 #include <iterator>
@@ -107,6 +108,15 @@ static void inv_driver(blas_idx_t n_global)
             "Time for PxGETRF + PxGETRI = %10.7f seconds\tGflops/Proc = %10.7f, Error = %f\n",
             n_global, grid->nprocs(), grid->nprows(), grid->npcols(), 
             t_glob, gflops, err);fflush(stdout);
+
+        std::ofstream outfile ("out_inverse.txt");
+        outfile << "Num rows "<< n_global << std::endl;
+        outfile << "Block size "<< a->row_block_size() << std::endl;
+        outfile << "processor rows "<< grid->nprows() << std::endl;
+        outfile << "processor cols "<< grid->npcols() << std::endl;
+        outfile <<  "Time for PxGETRF + PxGETRI = " << t_glob << " seconds."<< std::endl;
+        outfile <<  "perf: "<< getri_flops(n_global)/t_glob << " GFlops/s"<< std::endl;
+        outfile.close();
     }
 }
 

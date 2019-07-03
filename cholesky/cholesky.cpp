@@ -1,6 +1,8 @@
 #include <mpi.h>
 #include <cstdio>
 #include <cassert>
+#include <iostream>
+#include <fstream>
 #include "block_cyclic_mat.h"
 #include "scalapack.h"
 
@@ -63,6 +65,15 @@ static void chol_driver(blas_idx_t n_global)
             "Time for PxPOTRF = %10.7f seconds\tGflops/Proc = %10.7f\n",
             n_global, grid->nprocs(), grid->nprows(), grid->npcols(), 
             t_glob, gflops);fflush(stdout);
+
+        std::ofstream outfile ("out_cholesky.txt");
+        outfile << "Num rows "<< n_global << std::endl;
+        outfile << "Block size "<< a->row_block_size() << std::endl;
+        outfile << "processor rows "<< grid->nprows() << std::endl;
+        outfile << "processor cols "<< grid->npcols() << std::endl;
+        outfile <<  "Time for PxPOTRF = " << t_glob << " seconds."<< std::endl;
+        outfile <<  "perf: "<< potrf_flops(n_global)/t_glob << " GFlops/s"<< std::endl;
+        outfile.close();
     }
 }
 

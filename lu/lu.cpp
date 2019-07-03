@@ -1,6 +1,8 @@
 #include <mpi.h>
 #include <cstdio>
 #include <cassert>
+#include <iostream>
+#include <fstream>
 #include "block_cyclic_mat.h"
 #include "scalapack.h"
 
@@ -97,6 +99,15 @@ static void lu_driver(blas_idx_t m_global, blas_idx_t n_global = 1)
             "Time for PxGESV = %10.7f seconds\tGflops/Proc = %10.7f, Error = %f\n",
             m_global, n_global, grid->nprocs(), grid->nprows(), grid->npcols(), 
             t_glob, gflops, err);fflush(stdout);
+
+        std::ofstream outfile ("out_lu.txt");
+        outfile << "Num rows "<< n_global << std::endl;
+        outfile << "Block size "<< a->row_block_size() << std::endl;
+        outfile << "processor rows "<< grid->nprows() << std::endl;
+        outfile << "processor cols "<< grid->npcols() << std::endl;
+        outfile <<  "Time for PxGESV = " << t_glob << " seconds."<< std::endl;
+        outfile <<  "perf: "<< gesv_flops(m_global, n_global)/t_glob << " GFlops/s"<< std::endl;
+        outfile.close();
     }
 }
 

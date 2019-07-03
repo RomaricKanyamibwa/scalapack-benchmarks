@@ -1,4 +1,6 @@
 #include <mpi.h>
+#include <iostream>
+#include <fstream>
 #include "block_cyclic_mat.h"
 #include "scalapack.h"
 
@@ -45,6 +47,17 @@ static void dgemm_driver(blas_idx_t m_global, blas_idx_t n_global, blas_idx_t k_
             "Time for PxGEMM = %10.7f seconds\tGFlops/Proc = %10.7f\n", 
             m_global, n_global, k_global, grid->nprocs(), grid->nprows(), grid->npcols(),
             t_glob, gflops); fflush(stdout);
+
+        std::ofstream outfile ("out_matrixmultiply.txt");
+        outfile << "m : Num rows "<< m_global << std::endl;
+        outfile << "n : Num rows "<< n_global << std::endl;
+        outfile << "k : Num rows "<< k_global << std::endl;
+        outfile << "Block size "<< a->row_block_size() << std::endl;
+        outfile << "processor rows "<< grid->nprows() << std::endl;
+        outfile << "processor cols "<< grid->npcols() << std::endl;
+        outfile <<  "Time for PxGEMM = " << t_glob << " seconds."<< std::endl;
+        outfile <<  "perf: "<< gemm_flops(m_global, n_global, k_global)/t_glob << " GFlops/s"<< std::endl;
+        outfile.close();
     }
 }
 
