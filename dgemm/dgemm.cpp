@@ -48,7 +48,7 @@ static void dgemm_driver(blas_idx_t m_global, blas_idx_t n_global, blas_idx_t k_
             m_global, n_global, k_global, grid->nprocs(), grid->nprows(), grid->npcols(),
             t_glob, gflops); fflush(stdout);
 
-        std::ofstream outfile ("dgemm.txt");
+        std::ofstream outfile ("out_dgemm.txt");
         outfile << "m : Num rows "<< m_global << std::endl;
         outfile << "n : Num rows "<< n_global << std::endl;
         outfile << "k : Num rows "<< k_global << std::endl;

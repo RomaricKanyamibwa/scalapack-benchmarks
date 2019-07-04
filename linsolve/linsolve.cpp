@@ -100,7 +100,7 @@ static void lu_driver(blas_idx_t m_global, blas_idx_t n_global = 1)
             m_global, n_global, grid->nprocs(), grid->nprows(), grid->npcols(), 
             t_glob, gflops, err);fflush(stdout);
 
-        std::ofstream outfile ("linsolve.txt");
+        std::ofstream outfile ("out_linsolve.txt");
         outfile << "Num rows "<< m_global << std::endl;
         outfile << "RHS "<< n_global << std::endl;
         outfile << "Block size "<< a->row_block_size() << std::endl;
