@@ -106,7 +106,7 @@ static void lu_driver(blas_idx_t m_global, blas_idx_t n_global = 1)
         outfile << "Block size "<< a->row_block_size() << std::endl;
         outfile << "processor rows "<< grid->nprows() << std::endl;
         outfile << "processor cols "<< grid->npcols() << std::endl;
-        outfile <<  "Time for PxGESV = " << t_glob << " seconds."<< std::endl;
+        outfile <<  "PxGESV took " << t_glob << " seconds."<< std::endl;
         outfile <<  "perf: "<< gesv_flops(m_global, n_global)/t_glob << " GFlops/s"<< std::endl;
         outfile.close();
     }

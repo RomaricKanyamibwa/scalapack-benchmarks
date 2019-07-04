@@ -71,7 +71,7 @@ static void chol_driver(blas_idx_t n_global)
         outfile << "Block size "<< a->row_block_size() << std::endl;
         outfile << "processor rows "<< grid->nprows() << std::endl;
         outfile << "processor cols "<< grid->npcols() << std::endl;
-        outfile <<  "Time for PxPOTRF = " << t_glob << " seconds."<< std::endl;
+        outfile <<  "PxPOTRF took " << t_glob << " seconds."<< std::endl;
         outfile <<  "perf: "<< potrf_flops(n_global)/t_glob << " GFlops/s"<< std::endl;
         outfile.close();
     }

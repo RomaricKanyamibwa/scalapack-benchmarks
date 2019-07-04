@@ -55,7 +55,7 @@ static void dgemm_driver(blas_idx_t m_global, blas_idx_t n_global, blas_idx_t k_
         outfile << "Block size "<< a->row_block_size() << std::endl;
         outfile << "processor rows "<< grid->nprows() << std::endl;
         outfile << "processor cols "<< grid->npcols() << std::endl;
-        outfile <<  "Time for PxGEMM = " << t_glob << " seconds."<< std::endl;
+        outfile <<  "PxGEMM took " << t_glob << " seconds."<< std::endl;
         outfile <<  "perf: "<< gemm_flops(m_global, n_global, k_global)/t_glob << " GFlops/s"<< std::endl;
         outfile.close();
     }
