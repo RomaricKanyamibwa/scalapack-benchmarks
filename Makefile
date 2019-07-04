@@ -43,28 +43,31 @@ ifeq ($(TARGET),intel)
 	LIBSF	= $(LIBS)
 endif
 
-default:$(OBJ_MOD) $(PROGS) 
+default:$(OBJ_MOD) $(PROGS)
 
-.PHONY: default cpp all 
+bin:
+	mkdir -p bin
+
+obj:
+	mkdir -p obj
+
+.PHONY: default cpp all dir clean
 
 cpp: $(BIN)
 
 all: default cpp
 
-bin/%: fortran/%.f90
+bin/%: fortran/%.f90 | bin
 	$(FC) $(FFLAGS) -o $@ $^ $(OBJ_MOD) $(LIBSF) -g
 
-obj/%.o: $(COMMONF)%.f90
-	$(FC) -c -o $@ $^ $(FFLAGS) $(LIBSF) -g
+obj/%.o: $(COMMONF)%.f90 | obj
+	$(FC) $(FFLAGS) -c -o $@ $^ -g
 
-$(BIN):$(addprefix obj/, $(OBJECTS))
-	$(CXX) $(CCLAGS) $(CPPFLAGS) -o $@ $(SRCS_CPP) $^ $(LIBS) -g
+$(BIN):$(addprefix obj/, $(OBJECTS))| bin
+	$(CXX) $(CCFLAGS) $(CPPFLAGS) -o $@ $(SRCS_CPP) $^ $(LIBS) -g
 
-obj/%.o: $(COMMON)%.cpp
-	$(CXX) -c -o $@ $^ $(CCFLAGS) $(CPPFLAGS) $(LIBS) -g
-
-%.o: %.cpp
-	$(CXX) -c -o $@ $^ $(CCFLAGS) $(CPPFLAGS) $(LIBS) -g
+obj/%.o: $(COMMON)%.cpp | obj
+	$(CXX) $(CCFLAGS) -c -o $@ $^ -g
 
 clean:
 	rm -f bin/* obj/* *.mod out_*

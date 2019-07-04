@@ -101,7 +101,8 @@ static void lu_driver(blas_idx_t m_global, blas_idx_t n_global = 1)
             t_glob, gflops, err);fflush(stdout);
 
         std::ofstream outfile ("out_lu.txt");
-        outfile << "Num rows "<< n_global << std::endl;
+        outfile << "Num rows "<< m_global << std::endl;
+        outfile << "RHS "<< n_global << std::endl;
         outfile << "Block size "<< a->row_block_size() << std::endl;
         outfile << "processor rows "<< grid->nprows() << std::endl;
         outfile << "processor cols "<< grid->npcols() << std::endl;
