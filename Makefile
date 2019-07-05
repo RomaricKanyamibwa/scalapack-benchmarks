@@ -29,7 +29,7 @@ BIN=bin/$(EXE_NAME)
 ifeq ($(TARGET),intel)
 
 	FC=mpiifort
-	CXX=mpiicpc
+	CXX=mpiicpc -std=c++11
 	OPTF    = -O3 -nofor_main -qopenmp -traceback -fPIC 
 	FFLAGS  = $(OPTF) -I${MKLROOT}/include/intel64/lp64 -I${MKLROOT}/include -fpp -fPIC
 	CCFLAGS = -O3 -qopenmp -traceback -fPIC -I${MKLROOT}/include/intel64/lp64 -I${MKLROOT}/include
